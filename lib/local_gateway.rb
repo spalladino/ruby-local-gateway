@@ -6,40 +6,28 @@ require 'json'
 
 class LocalGateway
 
-  attr_accessor :last_received_id
-  attr_accessor :ats
-  attr_accessor :aos
+  # attr_reader :last_received_id
+  # attr_reader :ats
+  # attr_reader :aos
 
-  attr_accessor :address
-  attr_accessor :url
-  attr_accessor :user
-  attr_accessor :password
+  attr_reader :address
+  attr_reader :url
+  attr_reader :user
+  attr_reader :password
+  attr_reader :protocol
 
-  attr_accessor :config_secret_key
-  attr_accessor :config_code
-  attr_accessor :config_base_url
+  # attr_reader :config_secret_key
+  # attr_reader :config_code
+  # attr_reader :config_base_url
 
-  def initialize
-    ats = []
-    aos = []
-  end
-
-  def generate_config_code(address, url='http://nuntium.instedd.org/')
-    self.address = address
-    self.config_base_url = url
-
-    endpoint = URI::join(url, '/tickets.json').to_s
-    response = JSON.parse(RestClient.post(endpoint, :address => address))    
-    puts response
-    self.config_secret_key = response['secret_key']
-    self.config_code = response['code']
-  end
-
-  def config(url, user, password, address=nil)
-    self.url = url
-    self.user = user
-    self.password = password
-    self.address ||= address
+  def initialize(url, user, password, address = self.class.default_address, protocol = self.class.default_protocol)
+    # @ats = []
+    # @aos = []
+    @address = address
+    @url = url
+    @user = user
+    @password = password
+    @protocol = protocol
     @client = QstClient.new(url, user, password)
     return self
   end
@@ -56,33 +44,64 @@ class LocalGateway
     @client.put_messages(messages)
   end
 
-  #protected
-
-  def receive
-    messages = @client.get_messages :from_id => last_received_id
-    puts messages
-    return self.last_received_id if messages.empty?
-    aos += messages
-    self.last_received_id = messages.last['id'] 
+  def send_at(text, options)
+      message = {'text' => text, 'to' => options[:to]}
+      send message
   end
 
-  def poll_config_status
-    endpoint = URI::join(self.config_base_url, "/tickets/#{self.config_code}.json").to_s
-    response = JSON.parse(RestClient.get(endpoint, :params => {:secret_key => config_secret_key}))
-    data = response['data']
-    
-    if response['status'] == 'complete'
-      url = URI::join(self.config_base_url, "/#{data['account']}/qst").to_s
-      self.config(url, data['channel'], data['password'])
-      return data['message']
-    else
-      return nil
-    end
+  def receive_aos
+    messages = @client.get_messages :from_id => @last_received_id
+    @last_received_id = messages.last['id'] unless messages.empty?
+    messages
   end
+  
+  # def receive
+  #   messages = @client.get_messages :from_id => @last_received_id
+  #   puts messages
+  #   return @last_received_id if messages.empty?
+  #   @aos += messages
+  #   @last_received_id = messages.last['id'] 
+  # end
+
+  def self.with_automatic_configuration_for(url='http://nuntium.instedd.org/', address = default_address, protocol = default_protocol)
+    response = request_configuration_code url, address
+    response['secret_key']
+    yield response['code']
+    data = poll_configuration_status response['code'], response['secret_key'], url
+    url = URI::join(url, "/#{data['account']}/qst").to_s
+    [data['message'], self.new(url, data['channel'], data['password'])]
+  end
+
+  private
 
   def with_protocol(address)
     return nil if address.nil? || address.empty?
-    return "sms://#{address}" unless address.start_with?('sms://')
+    return "#{protocol}://#{address}" unless address.start_with?("#{protocol}://")
+  end
+
+  def self.request_configuration_code(url, address)
+    endpoint = URI::join(url, '/tickets.json').to_s
+    JSON.parse(RestClient.post(endpoint, :address => address))
+  end
+
+  def self.poll_configuration_status(code, secret_key, url)
+    number_of_tries = 1
+    endpoint = URI::join(url, "/tickets/#{code}.json").to_s
+    response = JSON.parse(RestClient.get(endpoint, :params => {:secret_key => secret_key}))
+    until response['status'] == 'complete' || number_of_tries == 10
+      number_of_tries += 1
+      endpoint = URI::join(url, "/tickets/#{code}.json").to_s
+      response = JSON.parse(RestClient.get(endpoint, :params => {:secret_key => secret_key}))
+    end
+    response['data']
+  end
+
+  def self.default_protocol
+    'sms'
+  end
+
+  def self.default_address
+    '9990000'
   end
 
 end
