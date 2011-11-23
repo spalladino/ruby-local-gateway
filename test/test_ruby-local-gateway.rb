@@ -85,9 +85,10 @@ class TestRubyLocalGateway < Test::Unit::TestCase
       messages = lgw.receive_aos
       assert_equal 1,  messages.size
       message = messages.first
-      assert_equal "Hello Nuntium!", message[:body]
-      assert_equal "sms://1234", message[:from]
-      assert_equal "sms//5678", message[:to]
+      assert_equal "Hello Nuntium!", message['text']
+      assert_equal "sms://1234", message['from']
+      assert_equal "sms://5678", message['to']
+      assert_equal 0, lgw.receive_aos.size, 'The message must be received only once'
     ensure
       delete_nuntium_channel
     end

@@ -50,7 +50,11 @@ class LocalGateway
   end
 
   def receive_aos
-    messages = @client.get_messages :from_id => @last_received_id
+    messages = if @last_received_id.nil?
+                @client.get_messages
+              else
+               @client.get_messages :from_id => @last_received_id 
+             end
     @last_received_id = messages.last['id'] unless messages.empty?
     messages
   end
