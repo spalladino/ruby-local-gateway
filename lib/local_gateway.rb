@@ -5,24 +5,13 @@ require 'uri'
 require 'json'
 
 class LocalGateway
-
-  # attr_reader :last_received_id
-  # attr_reader :ats
-  # attr_reader :aos
-
   attr_reader :address
   attr_reader :url
   attr_reader :user
   attr_reader :password
   attr_reader :protocol
 
-  # attr_reader :config_secret_key
-  # attr_reader :config_code
-  # attr_reader :config_base_url
-
   def initialize(url, user, password, address = self.class.default_address, protocol = self.class.default_protocol)
-    # @ats = []
-    # @aos = []
     @address = address
     @url = url
     @user = user
@@ -45,31 +34,22 @@ class LocalGateway
   end
 
   def send_at(text, options)
-      message = {'text' => text, 'to' => options[:to]}
-      send message
+    message = {'text' => text, 'to' => options[:to]}
+    send message
   end
 
   def receive_aos
     messages = if @last_received_id.nil?
-                @client.get_messages
-              else
-               @client.get_messages :from_id => @last_received_id 
-             end
+                 @client.get_messages
+               else
+                 @client.get_messages :from_id => @last_received_id
+               end
     @last_received_id = messages.last['id'] unless messages.empty?
     messages
   end
-  
-  # def receive
-  #   messages = @client.get_messages :from_id => @last_received_id
-  #   puts messages
-  #   return @last_received_id if messages.empty?
-  #   @aos += messages
-  #   @last_received_id = messages.last['id'] 
-  # end
 
   def self.with_automatic_configuration_for(url='http://nuntium.instedd.org/', address = default_address, protocol = default_protocol)
     response = request_configuration_code url, address
-    response['secret_key']
     yield response['code']
     data = poll_configuration_status response['code'], response['secret_key'], url
     url = URI::join(url, "/#{data['account']}/qst").to_s
@@ -107,5 +87,4 @@ class LocalGateway
   def self.default_address
     '9990000'
   end
-
 end
