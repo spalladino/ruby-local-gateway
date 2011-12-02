@@ -41,6 +41,14 @@ class TestRubyLocalGateway < Test::Unit::TestCase
     end
   end
 
+  should "configure with tickets raises if no channel is created" do
+    assert_raise RuntimeError do
+      welcome_message, lgw = LocalGateway.with_automatic_configuration_for 'http://nuntium.manas.com.ar/' do | ticket_number |
+        # Don't create the channel
+      end
+    end
+  end
+
   should "send message" do
     begin
       create_nuntium_channel
