@@ -1,7 +1,7 @@
 Local Gateway
 =============
 
-A Local Gateway -developed by InSTEDD- implemented in Ruby for testing purposes.
+A Local Gateway -developed by [InSTEDD](http://www.instedd.org)- implemented in Ruby for testing purposes.
 
 Install
 -------
